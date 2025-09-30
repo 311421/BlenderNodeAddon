@@ -13,7 +13,29 @@ class UNUSED_NODE_OT_process_material_nodes(bpy.types.Operator):
     bl_label = "Process Unused Nodes"
     bl_options = {'REGISTER', 'UNDO'}
 
-classes = []
+    def find_unused_nodes(self, node_tree):
+        output_node = next((n for n in node_tree.nodes if n.type == 'OUTPUT_MATERIAL'), None)
+        
+        if not output_node:
+            print(f"В дереве '{node_tree.name}' не найдена нода 'Material Output'.")
+            return []
+
+        used_nodes = {output_node}
+        
+        def traverse_inputs(node):
+            for input in node.inputs:
+                for link in input.links:
+                    if link.from_node not in used_nodes:
+                        used_nodes.add(link.from_node)
+                        traverse_inputs(link.from_node)
+
+        traverse_inputs(output_node)
+        
+        unused_nodes = [
+            node for node in node_tree.nodes if node not in used_nodes
+        ]
+        
+        return unused_nodes
 
 class UNUSED_NODES_PT_nodes_panel(bpy.types.Panel):
     """Отрисовывает панель Node Tools в Node editor"""
@@ -30,6 +52,7 @@ class UNUSED_NODES_PT_nodes_panel(bpy.types.Panel):
 
         op = box.operator(UNUSED_NODE_OT_process_material_nodes.bl_idname, text="Find, Connect & Frame Unused")
 
+classes = [UNUSED_NODES_PT_nodes_panel]
 
 def register():
     for cls in classes:
